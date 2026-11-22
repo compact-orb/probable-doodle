@@ -24,6 +24,8 @@ secrets:
     client_id: "microsoft-oauth-client-id"
     client_secret: "none"
     refresh_token: "microsoft-personal-refresh-token"
+    # Optional: Microsoft Graph API token to enable sending
+    graph_refresh_token: "microsoft-graph-refresh-token"
 
   outlook_work:
     user: "work@company.com"
