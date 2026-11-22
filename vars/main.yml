@@ -9,9 +9,9 @@ mail_mcp_http_port: 8000
 mail_mcp_http_path: "/mcp"
 
 # Safety gates
-mail_imap_write_enabled: false
-mail_smtp_write_enabled: false
-mail_drafts_enabled: false
+mail_imap_write_enabled: true
+mail_smtp_write_enabled: true
+mail_drafts_enabled: true
 
 mail_attachment_upload_dir: "/var/lib/mail-mcp/attachments"
 mail_oauth2_token_store: "/var/lib/mail-mcp/tokens.json"
