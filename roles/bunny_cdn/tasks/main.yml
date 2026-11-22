@@ -1,0 +1,54 @@
+---
+- name: Ensure /etc/nginx/conf.d exists
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure /etc/nginx/conf.d/bunny_ips.conf exists
+  ansible.builtin.copy:
+    src: bunny_ips.conf
+    dest: /etc/nginx/conf.d/bunny_ips.conf
+    owner: root
+    group: root
+    mode: '0644'
+    force: false
+
+- name: Install Bunny CDN IP update script
+  ansible.builtin.copy:
+    src: update-bunny-ips.sh
+    dest: /usr/local/bin/update-bunny-ips.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Initial run of Bunny CDN IP updater
+  ansible.builtin.command:
+    cmd: /usr/local/bin/update-bunny-ips.sh
+  register: _bunny_run
+  changed_when: false
+  failed_when: false
+
+- name: Install systemd service for Bunny IP sync
+  ansible.builtin.copy:
+    src: update-bunny-ips.service
+    dest: /etc/systemd/system/update-bunny-ips.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install systemd timer for Bunny IP sync
+  ansible.builtin.copy:
+    src: update-bunny-ips.timer
+    dest: /etc/systemd/system/update-bunny-ips.timer
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable update-bunny-ips.timer
+  ansible.builtin.systemd_service:
+    name: update-bunny-ips.timer
+    enabled: true
+    state: "{{ 'started' if systemd_is_booted else omit }}"

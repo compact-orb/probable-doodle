@@ -1,0 +1,91 @@
+---
+- name: Ensure /etc/nginx/conf.d exists
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure /var/www/letsencrypt exists
+  ansible.builtin.file:
+    path: /var/www/letsencrypt
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: '0755'
+
+- name: Ensure /etc/nginx/nginx.conf includes conf.d/*.conf
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    insertafter: '^http \{'
+    line: "\tinclude conf.d/*.conf;"
+    state: present
+  notify: Reload nginx
+
+- name: Configure virtual host and Let's Encrypt TLS certificate
+  when: domain_name | default('') != ''
+  block:
+    - name: Check for Let's Encrypt TLS certificate
+      ansible.builtin.stat:
+        path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+      register: _cert_stat
+
+    - name: Template initial NGINX configuration for ACME challenge
+      ansible.builtin.template:
+        src: mail-mcp.conf
+        dest: /etc/nginx/conf.d/mail-mcp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: not _cert_stat.stat.exists
+
+    - name: Restart nginx to load ACME challenge configuration
+      ansible.builtin.systemd_service:
+        name: nginx.service
+        state: restarted
+      when:
+        - systemd_is_booted
+        - not _cert_stat.stat.exists
+
+    - name: Issue Let's Encrypt TLS certificate via certbot
+      ansible.builtin.command:
+        cmd: >
+          certbot certonly
+          --agree-tos
+          --deploy-hook "systemctl reload nginx"
+          --email {{ certbot_email }}
+          --no-eff-email
+          --webroot
+          -d {{ domain_name }}
+          -w /var/www/letsencrypt
+      when:
+        - systemd_is_booted
+        - certbot_email | default('') != ''
+        - not _cert_stat.stat.exists
+
+    - name: Re-check Let's Encrypt TLS certificate
+      ansible.builtin.stat:
+        path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+      register: _cert_stat
+
+    - name: Template NGINX mail-mcp configuration
+      ansible.builtin.template:
+        src: mail-mcp.conf
+        dest: /etc/nginx/conf.d/mail-mcp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload nginx
+
+- name: Enable and start nginx service
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    enabled: true
+    state: "{{ 'started' if systemd_is_booted else omit }}"
+
+- name: Enable and start certbot renewal timer
+  ansible.builtin.systemd_service:
+    name: certbot.timer
+    enabled: true
+    state: "{{ 'started' if systemd_is_booted else omit }}"

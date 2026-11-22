@@ -1,0 +1,33 @@
+---
+- name: Ensure /etc/mail-mcp directory exists
+  ansible.builtin.file:
+    path: /etc/mail-mcp
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Template /etc/mail-mcp/mail-mcp.env
+  ansible.builtin.template:
+    src: mail-mcp.env
+    dest: /etc/mail-mcp/mail-mcp.env
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart mail-mcp
+
+- name: Enable mail-mcp service
+  ansible.builtin.systemd_service:
+    name: mail-mcp.service
+    enabled: true
+
+- name: Start mail-mcp service if accounts are configured
+  ansible.builtin.systemd_service:
+    name: mail-mcp.service
+    state: started
+  when:
+    - systemd_is_booted
+    - (secrets.gmail_personal.user | default('') != '') or
+      (secrets.outlook_personal.user | default('') != '') or
+      (secrets.outlook_work.user | default('') != '') or
+      (secrets.gmail_school.user | default('') != '')

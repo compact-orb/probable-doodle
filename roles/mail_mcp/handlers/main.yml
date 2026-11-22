@@ -1,0 +1,11 @@
+---
+- name: Restart mail-mcp
+  ansible.builtin.systemd_service:
+    name: mail-mcp.service
+    state: restarted
+  when:
+    - systemd_is_booted
+    - (secrets.gmail_personal.user | default('') != '') or
+      (secrets.outlook_personal.user | default('') != '') or
+      (secrets.outlook_work.user | default('') != '') or
+      (secrets.gmail_school.user | default('') != '')

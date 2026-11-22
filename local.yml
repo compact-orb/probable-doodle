@@ -1,0 +1,34 @@
+---
+- name: Configure mail-mcp and NGINX
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  pre_tasks:
+    - name: Load local instance secrets if present
+      ansible.builtin.include_vars:
+        file: /etc/ansible/secrets.yml
+      failed_when: false
+
+    - name: Check if systemd is running
+      ansible.builtin.command:
+        cmd: systemctl is-system-running
+      register: _systemd_check
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Set systemd_is_booted fact
+      ansible.builtin.set_fact:
+        systemd_is_booted: >-
+          {{ _systemd_check.stdout in
+             ['running', 'degraded', 'starting'] }}
+
+  roles:
+    - ansible_pull
+    - mail_mcp
+    - bunny_cdn
+    - nginx
